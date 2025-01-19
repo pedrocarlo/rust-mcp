@@ -4,5 +4,14 @@ name = "rust-mcp"
 version = "0.1.0"
 
 [dependencies]
+async-stream = "0.3.6"
+axum = { version = "0.8.1", default-features = true, features = ["macros"] }
+axum-extra = { version = "0.10.0", features = ["query"] }
+futures = "0.3.31"
+querystring = "1.1.0"
 serde = { version = "1.0.217", features = ["serde_derive"] }
 serde_json = { version = "1.0.135" }
+tokio = { version = "1.43.0", features = ["full"] }
+tokio-stream = "0.1.17"
+tower = "0.5.2"
+uuid = { version = "1.12.0", features = ["v4"] }
