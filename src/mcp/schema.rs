@@ -1,8 +1,9 @@
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum JSONRPCMessage {
     Request(JSONRPCRequest),
@@ -17,7 +18,7 @@ pub const JSONRPC_VERSION: &str = "2.0";
 
 // TODO see where to implement _meta for request and result types
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ProgressToken {
     String(String),
@@ -26,14 +27,14 @@ pub enum ProgressToken {
 
 pub type Cursor = String;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestBaseMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
     progress_token: Option<ProgressToken>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestBaseParams {
     #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
@@ -43,7 +44,7 @@ pub struct RequestBaseParams {
     pub extra: HashMap<String, Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationBaseParams {
     #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
@@ -53,7 +54,7 @@ pub struct NotificationBaseParams {
     pub extra: HashMap<String, Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultBase {
     #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
@@ -63,7 +64,7 @@ pub struct ResultBase {
     pub extra: HashMap<String, Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Result {
     #[serde(flatten)]
@@ -73,33 +74,33 @@ pub struct Result {
     defined_fields: ResultEnum,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum RequestId {
     String(String),
     Number(i64),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct JSONRPCRequest {
-    pub method: String,
+    #[serde(flatten)]
     pub params: RequestParams,
     #[serde(rename = "jsonrpc")]
     pub json_rpc: String,
     pub id: RequestId,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct JSONRPCNotification {
-    pub method: String,
+    #[serde(flatten)]
     pub params: NotificationParams,
     #[serde(rename = "jsonrpc")]
     pub json_rpc: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct JSONRPCResponse {
     pub method: String,
@@ -115,7 +116,7 @@ pub const METHOD_NOT_FOUND: i64 = -32601;
 pub const INVALID_PARAMS: i64 = -32602;
 pub const INTERNAL_ERROR: i64 = -32603;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct JSONRPCError {
     #[serde(rename = "jsonrpc")]
@@ -124,7 +125,7 @@ pub struct JSONRPCError {
     pub error: ErrorParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorParams {
     pub code: i64,
@@ -135,7 +136,7 @@ pub struct ErrorParams {
 
 pub type EmptyResult = ResultBase;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelledNotificationParams {
     pub request_id: RequestId,
@@ -143,7 +144,7 @@ pub struct CancelledNotificationParams {
     pub reason: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeRequestParams {
     pub protocol_version: String,
@@ -151,7 +152,7 @@ pub struct InitializeRequestParams {
     pub client_info: Implementation,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResult {
     pub protocol_version: String,
@@ -161,30 +162,32 @@ pub struct InitializeResult {
     pub instructions: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializedNotificationParams {
     #[serde(flatten)]
-    notification_base: NotificationBaseParams,
+    pub notification_base: NotificationBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<HashMap<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub roots: Option<RootCapabilities>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling: Option<HashMap<String, Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RootCapabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub list_changed: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,156 +202,160 @@ pub struct ServerCapabilities {
     pub tools: Option<HashMap<String, Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptCapabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub list_changed: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceCapabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subscribe: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub list_changed: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolCapabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub list_changed: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Implementation {
-    name: String,
-    version: String,
+    pub name: String,
+    pub version: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PingRequestParams {
     #[serde(flatten)]
-    request_base: RequestBaseParams,
+    pub request_base: RequestBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressNotificationParams {
-    progress_token: ProgressToken,
-    progress: i64,
+    pub progress_token: ProgressToken,
+    pub progress: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    total: Option<i64>,
+    pub total: Option<i64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaginatedRequestParams {
     #[serde(flatten)]
-    request_base: RequestBaseParams,
+    pub request_base: RequestBaseParams,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    cursor: Option<Cursor>,
+    pub cursor: Option<Cursor>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaginatedResult {
     #[serde(skip_serializing_if = "Option::is_none")]
-    next_cursor: Option<Cursor>,
+    pub next_cursor: Option<Cursor>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListResourcesRequestParams {
     #[serde(flatten)]
-    paginated_base: PaginatedRequestParams,
+    pub paginated_base: PaginatedRequestParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListResourcesResult {
     #[serde(flatten)]
     // Composition with flattening to emulate schema inheritance
-    paginated_base: PaginatedResult,
-    resources: Vec<Resource>,
+    pub paginated_base: PaginatedResult,
+    pub resources: Vec<Resource>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListResourceTemplatesRequestParams {
     #[serde(flatten)]
-    paginated_base: PaginatedRequestParams,
+    pub paginated_base: PaginatedRequestParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListResourcesTemplateResult {
     #[serde(flatten)]
     // Composition with flattening to emulate schema inheritance
-    paginated_base: PaginatedResult,
-    resources_templates: Vec<ResourceTemplate>,
+    pub paginated_base: PaginatedResult,
+    pub resources_templates: Vec<ResourceTemplate>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadResourceRequestParams {
-    uri: String,
+    pub uri: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadResourceResult {
-    contents: Vec<ContentsResource>,
+    pub contents: Vec<ContentsResource>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum ContentsResource {
     Text(TextResourceContents),
     Blob(BlobResourceContents),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceListChangedNotificationParams {
     #[serde(flatten)]
-    notification_base: NotificationBaseParams,
+    pub notification_base: NotificationBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SubscribeRequestParams {
-    uri: String,
+    pub uri: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UnsubscribeRequestParams {
-    uri: String,
+    pub uri: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceUpdatedNotificationParams {
-    uri: String,
+    pub uri: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
     #[serde(flatten)]
-    annotated_base: AnnotatedBase,
+    pub annotated_base: AnnotatedBase,
 
-    uri: String,
-    name: String,
+    pub uri: String,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    mime_type: Option<String>,
+    pub mime_type: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceTemplate {
     #[serde(flatten)]
@@ -362,7 +369,7 @@ pub struct ResourceTemplate {
     mime_type: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceContents {
     uri: String,
@@ -370,7 +377,7 @@ pub struct ResourceContents {
     mime_type: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TextResourceContents {
     #[serde(flatten)]
@@ -379,7 +386,7 @@ pub struct TextResourceContents {
     text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BlobResourceContents {
     #[serde(flatten)]
@@ -390,14 +397,14 @@ pub struct BlobResourceContents {
 
 // Prompts
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListPromptsRequestParams {
     #[serde(flatten)]
     paginated_base: PaginatedRequestParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListPromptsResult {
     #[serde(flatten)]
@@ -406,21 +413,23 @@ pub struct ListPromptsResult {
     prompts: Vec<Prompt>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPromptRequestParams {
     name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     arguments: Option<HashMap<String, String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPromptResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     messages: Vec<PromptMessage>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Prompt {
     name: String,
@@ -430,7 +439,7 @@ pub struct Prompt {
     arguments: Option<Vec<PromptArgument>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptArgument {
     name: String,
@@ -440,21 +449,21 @@ pub struct PromptArgument {
     required: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Role {
     User,
     Assistant,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptMessage {
     role: Role,
     content: PromptMessageContent,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum PromptMessageContent {
     Text(TextContent),
@@ -463,7 +472,7 @@ pub enum PromptMessageContent {
     Embedded(EmbeddedResource),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct EmbeddedResource {
     #[serde(flatten)]
@@ -472,14 +481,14 @@ pub struct EmbeddedResource {
     resource: EmbeddedResourceEnum,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum EmbeddedResourceEnum {
     Text(TextResourceContents),
     Blob(BlobResourceContents),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptListChangedNotificationParams {
     #[serde(flatten)]
@@ -488,14 +497,14 @@ pub struct PromptListChangedNotificationParams {
 
 // Tools
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListToolsRequestParams {
     #[serde(flatten)]
     paginated_base: PaginatedRequestParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListToolsResult {
     #[serde(flatten)]
@@ -503,7 +512,7 @@ pub struct ListToolsResult {
     tools: Vec<Tool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CallToolResult {
     content: Vec<CallToolContent>,
@@ -511,7 +520,7 @@ pub struct CallToolResult {
     is_error: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum CallToolContent {
     Text(TextContent),
@@ -520,7 +529,7 @@ pub enum CallToolContent {
     Embedded(EmbeddedResource),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CallToolRequestParams {
     name: String,
@@ -528,14 +537,14 @@ pub struct CallToolRequestParams {
     arguments: Option<HashMap<String, Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolListChangedNotificationParams {
     #[serde(flatten)]
     notifications_base: NotificationBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Tool {
     name: String,
@@ -544,7 +553,7 @@ pub struct Tool {
     input_schema: ToolInputSchemaType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolInputSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -552,7 +561,7 @@ pub struct ToolInputSchema {
     required: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum ToolInputSchemaType {
     Object(ToolInputSchema),
@@ -560,13 +569,13 @@ pub enum ToolInputSchemaType {
 
 // Logging
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLevelRequestParams {
     level: LoggingLevel,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LoggingMessageNotificationParams {
     level: LoggingLevel,
@@ -575,7 +584,7 @@ pub struct LoggingMessageNotificationParams {
     data: Value, // TODO maybe Option<Value>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum LoggingLevel {
     Debug,
@@ -588,20 +597,25 @@ pub enum LoggingLevel {
     Emergency,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMessageRequestParams {
     messages: Vec<SamplingMessage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     model_preferences: Option<ModelPreferences>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     system_prompt: Option<String>,
-    temperature: Option<f32>, // TODO maybe validate between 0 and 1
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<OrderedFloat<f32>>, // TODO maybe validate between 0 and 1
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     stop_sequences: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<HashMap<String, Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMessageResult {
     #[serde(flatten)]
@@ -611,7 +625,7 @@ pub struct CreateMessageResult {
     stop_reason: Option<StopReason>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum StopReason {
     EndTurn,
@@ -620,28 +634,28 @@ pub enum StopReason {
     String(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SamplingMessage {
     role: Role,
     content: SamplingMessageContent,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum SamplingMessageContent {
     Text(TextContent),
     Image(ImageContent),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnotatedBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     annotations: Option<Annotations>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Annotations {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -650,7 +664,7 @@ pub struct Annotations {
     priority: Option<i64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TextContent {
     #[serde(flatten)]
@@ -658,7 +672,7 @@ pub struct TextContent {
     text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageContent {
     #[serde(flatten)]
@@ -667,17 +681,17 @@ pub struct ImageContent {
     mime_type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelPreferences {
     #[serde(skip_serializing_if = "Option::is_none")]
     hints: Option<Vec<ModelHint>>,
-    cost_priority: f32,         // TODO validation here min val = 0, max val = 1
-    speed_priority: f32,        // TODO validation here min val = 0, max val = 1
-    intelligence_priority: f32, // TODO validation here min val = 0, max val = 1
+    cost_priority: OrderedFloat<f32>, // TODO validation here min val = 0, max val = 1
+    speed_priority: OrderedFloat<f32>, // TODO validation here min val = 0, max val = 1
+    intelligence_priority: OrderedFloat<f32>, // TODO validation here min val = 0, max val = 1
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelHint {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -686,14 +700,14 @@ pub struct ModelHint {
 
 // Autocomplete
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CompleteRequestParams {
     r#ref: CompleteRequestRef,
     argument: CompleteRequestArgument,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum CompleteRequestRef {
     #[serde(rename = "ref/resource")]
@@ -702,37 +716,39 @@ pub enum CompleteRequestRef {
     Prompt { name: String },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CompleteRequestArgument {
     name: String,
     value: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CompleteResult {
     values: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     total: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     has_more: Option<bool>,
 }
 
 // Roots
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListRootsRequestParams {
     #[serde(flatten)]
     request_base: RequestBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListRootResult {
     roots: Vec<Root>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Root {
     uri: String,
@@ -740,15 +756,15 @@ pub struct Root {
     name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct RootsListChangedNotificationParams {
     #[serde(flatten)]
     notification_base: NotificationBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase", tag = "method")]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", tag = "method", content = "params")]
 pub enum RequestParams {
     Initialize(InitializeRequestParams),
     Ping(PingRequestParams),
@@ -780,7 +796,7 @@ pub enum RequestParams {
     ListRoots(ListRootsRequestParams),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "method")]
 pub enum NotificationParams {
     #[serde(rename = "notifications/cancelled")]
@@ -803,7 +819,7 @@ pub enum NotificationParams {
     RootsListChanged(RootsListChangedNotificationParams),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum ResultEnum {
     Empty(EmptyResult),

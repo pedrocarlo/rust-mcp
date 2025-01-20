@@ -12,7 +12,7 @@ use axum::{
         IntoResponse, Response,
     },
     routing::{get, post},
-    Extension, Router,
+    Extension, Json, Router,
 };
 use futures::stream::Stream;
 use http_body_util::BodyExt;
@@ -28,6 +28,8 @@ use tower_http::{
 use tracing::{info_span, Level, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
+
+use crate::mcp::schema;
 
 use super::{Message, Server, SessionId};
 
@@ -152,17 +154,12 @@ async fn sse_handler(
 
     let session_uri = format!("{}?{}={}", state.endpoint, "sessionId", &session_id);
 
-    tracing::debug!("session_uri" = session_uri);
-
     let mut endpoint_sent = false;
 
     let stream = try_stream! {
         loop {
-
-
             if !endpoint_sent {
                 endpoint_sent = true;
-                tracing::debug!("endpoint" = session_uri);
                 yield Event::default().event("endpoint").data(session_uri.clone())
             } else {
                 match client.recv.recv().await {
@@ -192,10 +189,14 @@ async fn sse_handler(
 
 async fn message_handler(
     State(state): State<Arc<SseState>>,
-    session_id: Query<SessionId>,
+    session_query: Query<SessionQuery>,
+    Json(message): Json<schema::JSONRPCMessage>,
+    // message: String
 ) -> impl IntoResponse {
-    tracing::debug!("message");
-    session_id.0
+    tracing::debug!("{message:#?}");
+    session_query.0.session_id;
+
+    StatusCode::OK
 }
 
 async fn print_request_response(

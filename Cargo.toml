@@ -10,6 +10,7 @@ axum-extra = { version = "0.10.0", features = ["query"] }
 bytes = "1.9.0"
 futures = "0.3.31"
 http-body-util = "0.1.2"
+ordered-float = { version = "4.6.0", features = ["serde"] }
 querystring = "1.1.0"
 serde = { version = "1.0.217", features = ["serde_derive"] }
 serde_json = { version = "1.0.135" }
