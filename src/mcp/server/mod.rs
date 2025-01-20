@@ -1,7 +1,8 @@
+mod request;
 mod sse;
 mod stdio;
+mod utils;
 
-use serde_json::ser;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex, RwLock},
@@ -28,7 +29,7 @@ type SessionId = String;
 #[derive(Debug)]
 pub struct Server {
     port: usize,
-    clients: Arc<RwLock<HashMap<SessionId, Sender<Message>>>>,
+    clients: Arc<RwLock<HashMap<SessionId, Arc<Mutex<ClientConn>>>>>,
     send_close_client: Sender<SessionId>,
     name: String,
     version: String,
@@ -57,21 +58,31 @@ impl Server {
     fn new_connection(&self, session_id: &str) -> Client {
         let (send, recv): (Sender<Message>, Receiver<Message>) = mpsc::channel(32);
 
-        self.clients
-            .write()
-            .unwrap()
-            .insert(session_id.to_string(), send);
+        {
+            // Drop lock faster
+            self.clients.write().unwrap().insert(
+                session_id.to_string(),
+                Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
+            );
+        }
 
         Client::new(session_id, recv)
     }
 
     fn close_connection(&self, session_id: SessionId) {
+        tracing::debug!("close client connection");
+
         // TODO later handler error where you cannot write to map
         self.clients.write().unwrap().remove(&session_id);
+
+        {
+            let len = self.clients.read().unwrap().len();
+            tracing::debug!("client_map_size" = len);
+        }
     }
 
     async fn listen(
-        clients: Arc<RwLock<HashMap<SessionId, Sender<Message>>>>,
+        clients: Arc<RwLock<HashMap<SessionId, Arc<Mutex<ClientConn>>>>>,
         recv_close_client: Receiver<String>,
     ) {
         let mut rx = recv_close_client;
@@ -123,8 +134,6 @@ impl Server {
 struct Client {
     recv: Receiver<Message>,
     session_id: SessionId,
-    capabilities: Option<schema::ClientCapabilities>,
-    initialize_status: InitializeStatus,
 }
 
 impl Client {
@@ -132,8 +141,29 @@ impl Client {
         Self {
             session_id: String::from(session_id),
             recv,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ClientConn {
+    session_id: SessionId,
+    initialize_status: InitializeStatus,
+    send: Sender<Message>,
+    capabilities: schema::ClientCapabilities,
+}
+
+impl ClientConn {
+    fn new(
+        session_id: &str,
+        send: Sender<Message>,
+        capabilities: Option<schema::ClientCapabilities>,
+    ) -> Self {
+        Self {
+            session_id: session_id.to_string(),
             initialize_status: InitializeStatus::default(),
-            capabilities: None,
+            send,
+            capabilities: capabilities.unwrap_or_default(),
         }
     }
 }

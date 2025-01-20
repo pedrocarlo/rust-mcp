@@ -45,7 +45,7 @@ checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -110,6 +110,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-derive-error"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f77ede18f1778702eb354abcfd94a7e5802f9e7e9a2499e8ad39bfb539bb631b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "axum-extra"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -141,7 +152,7 @@ checksum = "604fde5e028fea851ce1d8570bbdc034bec850d157f7569d10f347d06808c05c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -254,7 +265,7 @@ checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -676,6 +687,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "axum",
+ "axum-derive-error",
  "axum-extra",
  "bytes",
  "futures",
@@ -684,6 +696,7 @@ dependencies = [
  "querystring",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tower",
@@ -734,7 +747,7 @@ checksum = "5a9bf7cf98d04a2b28aead066b7496853d4779c9cc183c440dbac457641e19a0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -829,6 +842,17 @@ dependencies = [
 
 [[package]]
 name = "syn"
+version = "1.0.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
 version = "2.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5d0adab1ae378d7f53bdebc67a39f1f151407ef230f0ce2883572f5d8985c80"
@@ -843,6 +867,26 @@ name = "sync_wrapper"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
+
+[[package]]
+name = "thiserror"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d452f284b73e6d76dd36758a0c8684b1d5be31f92b89d07fd5822175732206fc"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26afc1baea8a989337eeb52b6e72a039780ce45c3edfcc9c5b9d112feeb173c2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
 
 [[package]]
 name = "thread_local"
@@ -880,7 +924,7 @@ checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -958,7 +1002,7 @@ checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.96",
 ]
 
 [[package]]

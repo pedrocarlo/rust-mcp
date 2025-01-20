@@ -9,7 +9,6 @@ pub enum JSONRPCMessage {
     Request(JSONRPCRequest),
     Notification(JSONRPCNotification),
     Response(JSONRPCResponse),
-    Error(JSONRPCError),
 }
 
 pub const LATEST_PROTOCOL_VERSION: &str = "2024-11-05";
@@ -54,7 +53,7 @@ pub struct NotificationBaseParams {
     pub extra: HashMap<String, Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultBase {
     #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
@@ -68,10 +67,10 @@ pub struct ResultBase {
 #[serde(rename_all = "camelCase")]
 pub struct Result {
     #[serde(flatten)]
-    base: ResultBase,
+    pub base: ResultBase,
 
     #[serde(flatten)]
-    defined_fields: ResultEnum,
+    pub defined_fields: ResultEnum,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -102,8 +101,7 @@ pub struct JSONRPCNotification {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct JSONRPCResponse {
-    pub method: String,
+pub struct JSONRPCResult {
     #[serde(rename = "jsonrpc")]
     pub json_rpc: String,
     pub id: RequestId,
@@ -132,6 +130,23 @@ pub struct ErrorParams {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
+}
+
+impl Default for ErrorParams {
+    fn default() -> Self {
+        Self {
+            code: INTERNAL_ERROR,
+            message: "Unknown error ocurred".to_string(),
+            data: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum JSONRPCResponse {
+    Result(JSONRPCResult),
+    Error(JSONRPCError),
 }
 
 pub type EmptyResult = ResultBase;
@@ -169,7 +184,7 @@ pub struct InitializedNotificationParams {
     pub notification_base: NotificationBaseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -9,7 +9,7 @@ use axum::{
     middleware::{self, Next},
     response::{
         sse::{Event, Sse},
-        IntoResponse, Response,
+        IntoResponse, Response, Result,
     },
     routing::{get, post},
     Extension, Json, Router,
@@ -29,9 +29,12 @@ use tracing::{info_span, Level, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
-use crate::mcp::schema;
+use crate::mcp::{
+    schema::{self, JSONRPCMessage, JSONRPCRequest, JSONRPCResult},
+    server::{request::handle_request, utils::create_error_response},
+};
 
-use super::{Message, Server, SessionId};
+use super::{utils::CustomErrors, Message, Server, SessionId};
 
 // Sse Server should live as long as mcp_server
 // But mcp_server can live longer
@@ -162,9 +165,12 @@ async fn sse_handler(
                 endpoint_sent = true;
                 yield Event::default().event("endpoint").data(session_uri.clone())
             } else {
-                match client.recv.recv().await {
+                let mut_client = &mut client;
+                match mut_client.recv.recv().await {
                     Some(v) => {
+
                         if let Some(message) = serde_json::to_string(&v.sse_message).ok() {
+                            tracing::debug!("sending message");
                             yield Event::default().event("message").data(message)
                         } else {
                             // TODO maybe here just send an error message
@@ -187,16 +193,60 @@ async fn sse_handler(
     )
 }
 
+#[axum::debug_handler]
 async fn message_handler(
     State(state): State<Arc<SseState>>,
     session_query: Query<SessionQuery>,
     Json(message): Json<schema::JSONRPCMessage>,
     // message: String
-) -> impl IntoResponse {
+) -> Result<StatusCode, CustomErrors> {
     tracing::debug!("{message:#?}");
-    session_query.0.session_id;
 
-    StatusCode::OK
+    let session_id = session_query.0.session_id;
+
+    let req_id = match message {
+        schema::JSONRPCMessage::Request(ref req) => &req.id,
+        _ => unimplemented!(),
+    };
+
+    let res = match message {
+        schema::JSONRPCMessage::Request(ref req) => {
+            handle_request(&state.mcp_server, req, &session_id)
+        }
+        _ => todo!(),
+    };
+
+    let client_conn = {
+        // Block here to drop lock slightly earlier
+        let map = state.mcp_server.clients.read();
+        let map = match map {
+            Err(_) => return Err(CustomErrors::PoisonedLock),
+            Ok(x) => x,
+        };
+
+        if let Some(client_conn) = map.get(&session_id) {
+            client_conn.clone()
+        } else {
+            return Ok(StatusCode::OK);
+        }
+    };
+
+    let tx = {
+        match client_conn.lock() {
+            Err(_) => return Err(CustomErrors::PoisonedLock),
+            Ok(x) => x.send.clone(),
+        }
+    };
+
+    // TODO Ignore error for now
+    tx.send(Message {
+        session_id: session_id.to_owned(),
+        sse_message: res,
+    })
+    .await
+    .ok();
+
+    Ok(StatusCode::OK)
 }
 
 async fn print_request_response(
