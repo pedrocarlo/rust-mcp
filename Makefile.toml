@@ -1,0 +1,11 @@
+[tasks.serve]
+args = [
+    # "--no-pid",
+    # "-s",
+    # "http::3000",
+    # "--",
+    "watch",
+    "-x",
+    "run --bin sse",
+]
+command = "cargo"
