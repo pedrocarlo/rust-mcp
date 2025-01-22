@@ -9,6 +9,7 @@ axum = { version = "0.8.1", default-features = true, features = ["macros"] }
 axum-derive-error = "0.1.0"
 axum-extra = { version = "0.10.0", features = ["query"] }
 bytes = "1.9.0"
+dashmap = "6.1.0"
 futures = "0.3.31"
 http-body-util = "0.1.2"
 ordered-float = { version = "4.6.0", features = ["serde"] }

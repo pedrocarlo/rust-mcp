@@ -11,16 +11,23 @@ pub fn handle_notification(
     session_id: &SessionId,
 ) -> Result<()> {
     {
-        let map = server
-            .clients
-            .write()
-            .or_else(|_| Err(ApiError::PoisonedLock))?;
+        // let map = server
+        //     .clients
+        //     .write()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?;
 
-        let mut client_conn = map
+        // let mut client_conn = map
+        //     .get(session_id)
+        //     .ok_or(ApiError::MissingClient)?
+        //     .lock()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?;
+
+        let lock = server
+            .clients
             .get(session_id)
-            .ok_or(ApiError::MissingClient)?
-            .lock()
-            .or_else(|_| Err(ApiError::PoisonedLock))?;
+            .ok_or(ApiError::MissingClient)?;
+
+        let mut client_conn = lock.lock().or_else(|_| Err(ApiError::PoisonedLock))?;
 
         match request.params {
             schema::NotificationParams::Initialized(_) => {
@@ -29,5 +36,5 @@ pub fn handle_notification(
             _ => todo!(),
         }
     }
-    todo!()
+    Ok(())
 }

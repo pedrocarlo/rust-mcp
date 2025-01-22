@@ -11,16 +11,23 @@ pub fn handle_request(
     session_id: &SessionId,
 ) -> Result<JSONRPCMessage> {
     {
-        let map = server
-            .clients
-            .write()
-            .or_else(|_| Err(ApiError::PoisonedLock))?;
+        // let map = server
+        //     .clients
+        //     .write()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?;
 
-        let mut client_conn = map
+        // let mut client_conn = map
+        //     .get(session_id)
+        //     .ok_or(ApiError::MissingClient)?
+        //     .lock()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?;
+
+        let lock = server
+            .clients
             .get(session_id)
-            .ok_or(ApiError::MissingClient)?
-            .lock()
-            .or_else(|_| Err(ApiError::PoisonedLock))?;
+            .ok_or(ApiError::MissingClient)?;
+
+        let mut client_conn = lock.lock().or_else(|_| Err(ApiError::PoisonedLock))?;
 
         if let schema::RequestParams::Initialize(ref init) = request.params {
             match client_conn.initialize_status {

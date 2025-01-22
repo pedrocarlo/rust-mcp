@@ -9,11 +9,11 @@ use axum::{
         Response,
     },
     routing::{get, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use futures::stream::Stream;
 use serde::Deserialize;
-use std::{convert::Infallible, fmt, sync::Arc, time::Duration};
+use std::{fmt, sync::Arc, time::Duration};
 use tower_http::{
     trace::{DefaultOnRequest, TraceLayer},
     LatencyUnit,
@@ -154,7 +154,26 @@ async fn sse_handler(
 
     let mut endpoint_sent = false;
 
+    // Necessary to create a guard here
+    struct Guard {
+        session_id: SessionId,
+        state: Arc<SseState>,
+    }
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            _ = self.state.mcp_server.close_connection(&self.session_id);
+        }
+    }
+
+    let guard = Guard {
+        session_id: session_id.to_owned(),
+        state: state.clone(),
+    };
+
     let stream = try_stream! {
+        tracing::debug!("Starting sse stream");
+        let _hold_guard = guard;
         loop {
             if !endpoint_sent {
                 endpoint_sent = true;
@@ -163,18 +182,17 @@ async fn sse_handler(
                 let mut_client = &mut client;
                 match mut_client.recv.recv().await {
                     Some(v) => {
-
                         if let Some(message) = serde_json::to_string(&v.sse_message).ok() {
                             tracing::debug!("sending message");
                             yield Event::default().event("message").data(message)
                         } else {
                             // TODO maybe here just send an error message
-                            ()
+                            tracing::debug!("Error Deserialize: {:#?}", v.sse_message);
+                            continue;
                         }
                     },
                    None => {
-                    state.mcp_server.close_connection(session_id.clone())?;
-                    ()
+                    break
                    },
                 }
             }
@@ -201,23 +219,23 @@ async fn message_handler(
     let res = match message {
         schema::JSONRPCMessage::Request(ref req) => {
             handle_request(&state.mcp_server, req, &session_id)
-        },
+        }
         schema::JSONRPCMessage::Notification(ref not) => {
             handle_notification(&state.mcp_server, not, &session_id)?;
-            return Ok(StatusCode::OK)
+            return Ok(StatusCode::OK);
         }
         _ => todo!(),
     }?;
 
     let client_conn = {
         // Block here to drop lock slightly earlier
-        let map = state
-            .mcp_server
-            .clients
-            .read()
-            .or_else(|_| Err(ApiError::PoisonedLock))?;
+        // let map = state
+        //     .mcp_server
+        //     .clients
+        //     .read()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?;
 
-        if let Some(client_conn) = map.get(&session_id) {
+        if let Some(client_conn) = state.mcp_server.clients.get(&session_id) {
             client_conn.clone()
         } else {
             return Ok(StatusCode::OK);

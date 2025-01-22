@@ -1,15 +1,13 @@
-mod error;
+pub mod error;
 mod notification;
 mod request;
 mod sse;
 mod stdio;
 mod utils;
 
+use dashmap::DashMap;
 use error::{ApiError, Result};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::mcp::schema;
@@ -32,7 +30,7 @@ type SessionId = String;
 #[derive(Debug)]
 pub struct Server {
     port: usize,
-    clients: Arc<RwLock<HashMap<SessionId, Arc<Mutex<ClientConn>>>>>,
+    clients: DashMap<SessionId, Arc<Mutex<ClientConn>>>,
     send_close_client: Sender<SessionId>,
     name: String,
     version: String,
@@ -53,7 +51,7 @@ impl Server {
                 resources: None,
                 tools: None,
             },
-            clients: Arc::new(RwLock::new(HashMap::new())),
+            clients: DashMap::new(),
             send_close_client: send,
         }
     }
@@ -62,34 +60,41 @@ impl Server {
         let (send, recv): (Sender<Message>, Receiver<Message>) = mpsc::channel(32);
 
         {
+            self.clients.insert(
+                session_id.to_string(),
+                Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
+            );
             // Drop lock faster
-            self.clients
-                .write()
-                .or_else(|_| Err(ApiError::PoisonedLock))?
-                .insert(
-                    session_id.to_string(),
-                    Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
-                );
+            // self.clients
+            //     .write()
+            //     .or_else(|_| Err(ApiError::PoisonedLock))?
+            //     .insert(
+            //         session_id.to_string(),
+            //         Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
+            //     );
         }
 
         Ok(Client::new(session_id, recv))
     }
 
-    fn close_connection(&self, session_id: SessionId) -> Result<()> {
+    fn close_connection(&self, session_id: &SessionId) -> Result<()> {
         tracing::debug!("close client connection");
 
         // TODO later handler error where you cannot write to map
-        self.clients
-            .write()
-            .or_else(|_| Err(ApiError::PoisonedLock))?
-            .remove(&session_id);
+        // self.clients
+        //     .write()
+        //     .or_else(|_| Err(ApiError::PoisonedLock))?
+        //     .remove(session_id);
+
+        self.clients.remove(session_id);
 
         {
-            let len = self
-                .clients
-                .read()
-                .or_else(|_| Err(ApiError::PoisonedLock))?
-                .len();
+            // let len = self
+            //     .clients
+            //     .read()
+            //     .or_else(|_| Err(ApiError::PoisonedLock))?
+            //     .len();
+            let len = self.clients.len();
             tracing::debug!("client_map_size" = len);
         }
 
@@ -97,7 +102,7 @@ impl Server {
     }
 
     async fn listen(
-        clients: Arc<RwLock<HashMap<SessionId, Arc<Mutex<ClientConn>>>>>,
+        clients: DashMap<SessionId, Arc<Mutex<ClientConn>>>,
         recv_close_client: Receiver<String>,
     ) {
         let mut rx = recv_close_client;
@@ -105,9 +110,10 @@ impl Server {
             tokio::select! {
                 Some(session_id) = rx.recv() => {
                     // TODO lock can be poisoned here
-                    if let Some(mut map) = clients.write().ok() {
-                        map.remove(&session_id);
-                    }
+                    clients.remove(&session_id);
+                    // if let Some(mut map) = clients.write().ok() {
+                    //     map.remove(&session_id);
+                    // }
                 },
             };
         }
@@ -128,7 +134,7 @@ impl Server {
                 resources: None,
                 tools: None,
             },
-            clients: Arc::new(RwLock::new(HashMap::new())),
+            clients: DashMap::new(),
             send_close_client: send,
         };
 
@@ -154,7 +160,11 @@ impl Client {
     }
 }
 
-
+impl Drop for Client {
+    fn drop(&mut self) {
+        tracing::debug!("Client dropped");
+    }
+}
 
 #[derive(Debug)]
 struct ClientConn {
