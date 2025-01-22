@@ -1,8 +1,11 @@
+mod error;
+mod notification;
 mod request;
 mod sse;
 mod stdio;
 mod utils;
 
+use error::{ApiError, Result};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex, RwLock},
@@ -55,30 +58,42 @@ impl Server {
         }
     }
 
-    fn new_connection(&self, session_id: &str) -> Client {
+    fn new_connection(&self, session_id: &str) -> Result<Client> {
         let (send, recv): (Sender<Message>, Receiver<Message>) = mpsc::channel(32);
 
         {
             // Drop lock faster
-            self.clients.write().unwrap().insert(
-                session_id.to_string(),
-                Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
-            );
+            self.clients
+                .write()
+                .or_else(|_| Err(ApiError::PoisonedLock))?
+                .insert(
+                    session_id.to_string(),
+                    Arc::new(Mutex::new(ClientConn::new(session_id, send, None))),
+                );
         }
 
-        Client::new(session_id, recv)
+        Ok(Client::new(session_id, recv))
     }
 
-    fn close_connection(&self, session_id: SessionId) {
+    fn close_connection(&self, session_id: SessionId) -> Result<()> {
         tracing::debug!("close client connection");
 
         // TODO later handler error where you cannot write to map
-        self.clients.write().unwrap().remove(&session_id);
+        self.clients
+            .write()
+            .or_else(|_| Err(ApiError::PoisonedLock))?
+            .remove(&session_id);
 
         {
-            let len = self.clients.read().unwrap().len();
+            let len = self
+                .clients
+                .read()
+                .or_else(|_| Err(ApiError::PoisonedLock))?
+                .len();
             tracing::debug!("client_map_size" = len);
         }
+
+        Ok(())
     }
 
     async fn listen(
@@ -99,12 +114,7 @@ impl Server {
     }
 
     /// Starts an SSE Server. Moves ownership to function and blocks
-    pub async fn serve_sse(
-        name: &str,
-        version: &str,
-        port: usize,
-        endpoint: &str,
-    ) -> Result<(), std::io::Error> {
+    pub async fn serve_sse(name: &str, version: &str, port: usize, endpoint: &str) -> Result<()> {
         let (send, recv) = mpsc::channel(32);
 
         let server = Server {
@@ -126,7 +136,6 @@ impl Server {
         tokio::spawn(async move { Server::listen(clients, recv) });
 
         sse::serve(server, endpoint).await
-        // SseServer::start(server, endpoint).await
     }
 }
 

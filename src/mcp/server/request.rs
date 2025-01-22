@@ -1,5 +1,6 @@
 use crate::mcp::schema::{self, JSONRPCMessage};
 
+use super::error::{ApiError, Result};
 use super::utils::create_error_response;
 use super::InitializeStatus;
 use super::{Server, SessionId};
@@ -8,11 +9,18 @@ pub fn handle_request(
     server: &Server,
     request: &schema::JSONRPCRequest,
     session_id: &SessionId,
-) -> JSONRPCMessage {
+) -> Result<JSONRPCMessage> {
     {
-        let map = server.clients.write().unwrap();
-        let mut client_conn = map.get(session_id).unwrap().lock().unwrap();
-        
+        let map = server
+            .clients
+            .write()
+            .or_else(|_| Err(ApiError::PoisonedLock))?;
+
+        let mut client_conn = map
+            .get(session_id)
+            .ok_or(ApiError::MissingClient)?
+            .lock()
+            .or_else(|_| Err(ApiError::PoisonedLock))?;
 
         if let schema::RequestParams::Initialize(ref init) = request.params {
             match client_conn.initialize_status {
@@ -21,28 +29,28 @@ pub fn handle_request(
                     client_conn.capabilities = init.capabilities.clone();
                 }
                 InitializeStatus::Initializing => {
-                    return create_error_response(
+                    return Ok(create_error_response(
                         &request.id,
                         schema::INVALID_REQUEST,
                         "Connection already initializing",
-                    )
+                    ))
                 }
                 InitializeStatus::Initialized => {
-                    return create_error_response(
+                    return Ok(create_error_response(
                         &request.id,
                         schema::INVALID_REQUEST,
                         "Connection already initialized",
-                    )
+                    ))
                 }
             };
         } else {
             match client_conn.initialize_status {
                 InitializeStatus::NotInitialized => {
-                    return create_error_response(
+                    return Ok(create_error_response(
                         &request.id,
                         schema::INVALID_REQUEST,
                         "Connection not initialized",
-                    )
+                    ))
                 }
                 _ => (),
             };
@@ -52,7 +60,7 @@ pub fn handle_request(
         schema::RequestParams::Initialize(init) => {
             let response = handle_initialize(server, init, session_id, &request.id);
 
-            response
+            Ok(response)
         }
         _ => unimplemented!(),
     }

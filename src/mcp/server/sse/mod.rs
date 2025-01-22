@@ -2,39 +2,32 @@ mod routes;
 
 use async_stream::try_stream;
 use axum::{
-    body::{Body, Bytes},
-    extract::{MatchedPath, Query, Request, State},
-    handler::Handler,
-    http::{header, HeaderMap, HeaderValue, StatusCode},
-    middleware::{self, Next},
+    extract::{Query, Request, State},
+    http::{HeaderMap, StatusCode},
     response::{
         sse::{Event, Sse},
-        IntoResponse, Response, Result,
+        Response,
     },
     routing::{get, post},
-    Extension, Json, Router,
+    Json, Router,
 };
 use futures::stream::Stream;
-use http_body_util::BodyExt;
-use querystring::stringify;
-use serde::{de::Error, Deserialize};
+use serde::Deserialize;
 use std::{convert::Infallible, fmt, sync::Arc, time::Duration};
-use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::{
-    classify::ServerErrorsFailureClass,
-    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    trace::{DefaultOnRequest, TraceLayer},
     LatencyUnit,
 };
-use tracing::{info_span, Level, Span};
+use tracing::{Level, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::mcp::{
-    schema::{self, JSONRPCMessage, JSONRPCRequest, JSONRPCResult},
-    server::{request::handle_request, utils::create_error_response},
+    schema::{self},
+    server::{error::ApiError, request::handle_request},
 };
 
-use super::{utils::CustomErrors, Message, Server, SessionId};
+use super::{error::Result, Message, Server, SessionId};
 
 // Sse Server should live as long as mcp_server
 // But mcp_server can live longer
@@ -71,7 +64,7 @@ impl fmt::Display for Latency {
 #[derive(Clone)]
 struct RequestContext {}
 
-pub async fn serve(mcp_server: Server, endpoint: &str) -> Result<(), std::io::Error> {
+pub async fn serve(mcp_server: Server, endpoint: &str) -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -95,7 +88,7 @@ pub async fn serve(mcp_server: Server, endpoint: &str) -> Result<(), std::io::Er
     let port = shared_state.mcp_server.port;
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .unwrap();
+        .or_else(|err| Err(ApiError::IoError(err)))?;
 
     let app = Router::new()
         .route("/sse", get(sse_handler))
@@ -133,24 +126,26 @@ pub async fn serve(mcp_server: Server, endpoint: &str) -> Result<(), std::io::Er
                     },
                 ),
         )
-        .route_layer(middleware::from_fn(print_request_response))
+        // .route_layer(middleware::from_fn(print_request_response))
         .with_state(shared_state);
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
 
-    axum::serve(listener, app).await
+    axum::serve(listener, app)
+        .await
+        .or_else(|err| Err(ApiError::IoError(err)))
 }
 
 async fn sse_handler(
     State(state): State<Arc<SseState>>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+) -> Result<Sse<impl Stream<Item = Result<Event>>>> {
     tracing::debug!("sse handler");
 
     let session_id: SessionId = Uuid::new_v4().to_string();
 
     let mut client = {
         // Using block here so that lock can be dropped
-        state.mcp_server.new_connection(&session_id)
+        state.mcp_server.new_connection(&session_id)?
     };
 
     tracing::debug!("created client");
@@ -186,43 +181,37 @@ async fn sse_handler(
         }
     };
 
-    Sse::new(stream).keep_alive(
+    Ok(Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(Duration::from_secs(1))
             .text("keep-alive-text"),
-    )
+    ))
 }
 
-#[axum::debug_handler]
 async fn message_handler(
     State(state): State<Arc<SseState>>,
     session_query: Query<SessionQuery>,
     Json(message): Json<schema::JSONRPCMessage>,
     // message: String
-) -> Result<StatusCode, CustomErrors> {
+) -> Result<StatusCode> {
     tracing::debug!("{message:#?}");
 
     let session_id = session_query.0.session_id;
-
-    let req_id = match message {
-        schema::JSONRPCMessage::Request(ref req) => &req.id,
-        _ => unimplemented!(),
-    };
 
     let res = match message {
         schema::JSONRPCMessage::Request(ref req) => {
             handle_request(&state.mcp_server, req, &session_id)
         }
         _ => todo!(),
-    };
+    }?;
 
     let client_conn = {
         // Block here to drop lock slightly earlier
-        let map = state.mcp_server.clients.read();
-        let map = match map {
-            Err(_) => return Err(CustomErrors::PoisonedLock),
-            Ok(x) => x,
-        };
+        let map = state
+            .mcp_server
+            .clients
+            .read()
+            .or_else(|_| Err(ApiError::PoisonedLock))?;
 
         if let Some(client_conn) = map.get(&session_id) {
             client_conn.clone()
@@ -231,12 +220,11 @@ async fn message_handler(
         }
     };
 
-    let tx = {
-        match client_conn.lock() {
-            Err(_) => return Err(CustomErrors::PoisonedLock),
-            Ok(x) => x.send.clone(),
-        }
-    };
+    let tx = client_conn
+        .lock()
+        .or_else(|_| Err(ApiError::PoisonedLock))?
+        .send
+        .clone();
 
     // TODO Ignore error for now
     tx.send(Message {
@@ -247,43 +235,4 @@ async fn message_handler(
     .ok();
 
     Ok(StatusCode::OK)
-}
-
-async fn print_request_response(
-    req: Request,
-    next: Next,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // let (parts, body) = req.into_parts();
-    // let bytes = buffer_and_print("request", body).await?;
-    // let req = Request::from_parts(parts, Body::from(bytes));
-
-    let res = next.run(req).await;
-
-    // let (parts, body) = res.into_parts();
-    // let bytes = buffer_and_print("response", body).await?;
-    // let res = Response::from_parts(parts, Body::from(bytes));
-
-    Ok(res)
-}
-
-async fn buffer_and_print<B>(direction: &str, body: B) -> Result<Bytes, (StatusCode, String)>
-where
-    B: axum::body::HttpBody<Data = Bytes>,
-    B::Error: std::fmt::Display,
-{
-    let bytes = match body.collect().await {
-        Ok(collected) => collected.to_bytes(),
-        Err(err) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!("failed to read {direction} body: {err}"),
-            ));
-        }
-    };
-
-    if let Ok(body) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{direction} body = {body:?}");
-    }
-
-    Ok(bytes)
 }
