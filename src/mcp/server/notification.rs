@@ -1,4 +1,4 @@
-use crate::mcp::schema::{self, JSONRPCMessage};
+use crate::mcp::schema;
 use crate::mcp::server::error::ApiError;
 
 use super::error::Result;
@@ -9,7 +9,7 @@ pub fn handle_notification(
     server: &Server,
     request: &schema::JSONRPCNotification,
     session_id: &SessionId,
-) -> Result<JSONRPCMessage> {
+) -> Result<()> {
     {
         let map = server
             .clients

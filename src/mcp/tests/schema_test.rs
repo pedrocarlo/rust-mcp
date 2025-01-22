@@ -32,7 +32,7 @@ fn initialize_message_deserialize() {
         id: RequestId::Number(0),
         json_rpc: "2.0".to_string(),
         params: RequestParams::Initialize(InitializeRequestParams {
-            protocol_version: "2024-11-05".to_string(),
+            protocol_version: ProtocolVersion::Mcp2024_11_05,
             capabilities: ClientCapabilities {
                 experimental: None,
                 roots: Some(RootCapabilities { list_changed: None }),

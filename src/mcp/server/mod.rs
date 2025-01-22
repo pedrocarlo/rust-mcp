@@ -154,12 +154,15 @@ impl Client {
     }
 }
 
+
+
 #[derive(Debug)]
 struct ClientConn {
     session_id: SessionId,
     initialize_status: InitializeStatus,
     send: Sender<Message>,
     capabilities: schema::ClientCapabilities,
+    protocol_version: schema::ProtocolVersion,
 }
 
 impl ClientConn {
@@ -173,6 +176,7 @@ impl ClientConn {
             initialize_status: InitializeStatus::default(),
             send,
             capabilities: capabilities.unwrap_or_default(),
+            protocol_version: schema::ProtocolVersion::default(),
         }
     }
 }

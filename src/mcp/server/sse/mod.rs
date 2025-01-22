@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use crate::mcp::{
     schema::{self},
-    server::{error::ApiError, request::handle_request},
+    server::{error::ApiError, notification::handle_notification, request::handle_request},
 };
 
 use super::{error::Result, Message, Server, SessionId};
@@ -173,7 +173,7 @@ async fn sse_handler(
                         }
                     },
                    None => {
-                    state.mcp_server.close_connection(session_id.clone());
+                    state.mcp_server.close_connection(session_id.clone())?;
                     ()
                    },
                 }
@@ -201,6 +201,10 @@ async fn message_handler(
     let res = match message {
         schema::JSONRPCMessage::Request(ref req) => {
             handle_request(&state.mcp_server, req, &session_id)
+        },
+        schema::JSONRPCMessage::Notification(ref not) => {
+            handle_notification(&state.mcp_server, not, &session_id)?;
+            return Ok(StatusCode::OK)
         }
         _ => todo!(),
     }?;

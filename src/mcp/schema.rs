@@ -1,7 +1,10 @@
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
@@ -11,7 +14,27 @@ pub enum JSONRPCMessage {
     Response(JSONRPCResponse),
 }
 
-pub const LATEST_PROTOCOL_VERSION: &str = "2024-11-05";
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ProtocolVersion {
+    #[serde(rename = "2024-11-05")]
+    #[default]
+    Mcp2024_11_05,
+}
+
+// impl Display for ProtocolVersion {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(
+//             f,
+//             "{}",
+//             match self {
+//                 Self::Mcp2024_11_05 => "2024-11-05".to_string(),
+//             }
+//         )
+//     }
+// }
+
+pub const LATEST_PROTOCOL_VERSION: &ProtocolVersion = &ProtocolVersion::Mcp2024_11_05;
 
 pub const JSONRPC_VERSION: &str = "2.0";
 
@@ -162,7 +185,7 @@ pub struct CancelledNotificationParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeRequestParams {
-    pub protocol_version: String,
+    pub protocol_version: ProtocolVersion,
     pub capabilities: ClientCapabilities,
     pub client_info: Implementation,
 }
@@ -170,7 +193,7 @@ pub struct InitializeRequestParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResult {
-    pub protocol_version: String,
+    pub protocol_version: ProtocolVersion,
     pub capabilities: ServerCapabilities,
     pub server_info: Implementation,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -66,7 +66,7 @@ pub fn handle_request(
     }
 }
 
-pub fn handle_initialize(
+fn handle_initialize(
     server: &Server,
     _request: &schema::InitializeRequestParams,
     _session_id: &SessionId,
@@ -78,7 +78,7 @@ pub fn handle_initialize(
         result: schema::Result {
             base: schema::ResultBase::default(),
             defined_fields: schema::ResultEnum::Initialize(schema::InitializeResult {
-                protocol_version: schema::LATEST_PROTOCOL_VERSION.into(),
+                protocol_version: schema::LATEST_PROTOCOL_VERSION.to_owned(),
                 capabilities: server.capabilities.clone(),
                 server_info: schema::Implementation {
                     name: server.name.to_owned(),
